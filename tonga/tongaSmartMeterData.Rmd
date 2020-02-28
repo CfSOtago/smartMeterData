@@ -71,12 +71,12 @@ try(f1_df <- XML::xmlToDataFrame(f1_xml)) # try as it breaks if there's an error
 
 Helpful.
 
-Now try loading the .csv file (`r f1_csv`)
+Now try loading the .csv file (`r f1_csv`) and test what we get before any processing.
 
 ```{r load_f1_csv}
 f1_dt_orig <- data.table::fread(f1_csv, check.names = TRUE)
 
-skimr::skim(f1_dt)
+skimr::skim(f1_dt_orig)
 ```
 
 So what does all that mean?
