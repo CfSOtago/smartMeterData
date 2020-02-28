@@ -1,0 +1,139 @@
+---
+title: 'Exploring Tongan Smart Meter Data'
+subtitle: 'Code and notes'
+author: "Ben Anderson (ben.anderson@otago.ac.nz), [Centre for Sustainability](https://www.otago.ac.nz/centre-sustainability/), University of Otago"
+date: 'Last run at: `r Sys.time()`'
+output:
+  bookdown::pdf_document2:
+    fig_caption: yes
+    keep_tex: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+  bookdown::html_document2:
+    code_folding: hide
+    fig_caption: yes
+    number_sections: yes
+    self_contained: no
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  bookdown::word_document2:
+    fig_caption: yes
+    toc: yes
+    toc_depth: 2
+always_allow_html: yes
+bibliography: '`r path.expand("~/bibliography.bib")`'
+---
+
+```{r setup, include=FALSE}
+# Knitr setup ----
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE) # for final tidy run
+knitr::opts_chunk$set(message = FALSE) # for final tidy run
+
+# Set start time ----
+startTime <- proc.time()
+
+# Libraries ----
+
+library(data.table) # cos we like data.table (you may not in which case dplyr is fine :-)
+library(lubridate) # for data & time manip
+library(hms) # for hh:mm:ss if we need it
+library(ggplot2) # fancy plots
+library(kableExtra) # for extra kable
+library(skimr) # for skim (data description)
+library(XML)
+
+# Parameters ----
+dPath <- "~/Dropbox/Work/Otago_CfS_Ben/Students/KakauFoliaki_PhD/data/Smartmeter" # edit for your set up
+dPathFull <- path.expand(dPath)
+```
+
+
+# Intro
+
+We have some Tongan smart meter data provided as part of [Kakau Foliaki](https://www.otago.ac.nz/centre-sustainability/staff/otago678543.html)'s PhD. This code loads & tests it.
+
+# Initial dataset - file: CRF_2020_1_28_4296268_1 - Copy.7z
+
+```{r setData_f1}
+f1_xml <- paste0(dPathFull, "/CRF_2020_1_28_4296268_1 - Copy.xml")
+f1_csv <- paste0(dPathFull, "/Smartmeter.csv")
+```
+
+First try loading the (huge) xml file (`r f1_xml`)
+
+```{r load_f1_xml}
+try(f1_df <- XML::xmlToDataFrame(f1_xml)) # try as it breaks if there's an error
+
+```
+
+Helpful.
+
+Now try loading the .csv file (`r f1_csv`)
+
+```{r load_f1_csv}
+f1_dt_orig <- data.table::fread(f1_csv, check.names = TRUE)
+
+skimr::skim(f1_dt)
+```
+
+So what does all that mean?
+
+Try fixing some of the formats.
+
+```{r process_f1_csv}
+f1_dt <- data.table::copy(f1_dt_orig)
+f1_dt[, EndDate := lubridate::dmy_hm(EndDate)]
+f1_dt[, StartDate := lubridate::dmy_hm(StartDate)]
+f1_dt[, EndTimet := lubridate::dmy_hms(EndTime)]
+f1_dt[, NumberOfReadings.1t := lubridate::mdy_hms(NumberOfReadings.1)] # why is this a date? Why is it mdy???
+
+skimr::skim(f1_dt)
+```
+
+What??
+
+Is this half-hourly data? Or not?
+
+```{r plot_f1_StartDate}
+plotDT <- f1_dt[, .(nObs = .N), keyby = .(StartDate)]
+
+ggplot2::ggplot(plotDT, aes(x = StartDate, y = nObs)) +
+  geom_point()
+```
+
+# Runtime
+
+
+```{r check runtime, include=FALSE}
+t <- proc.time() - startTime
+elapsed <- t[[3]]
+```
+
+Analysis completed in `r round(elapsed,2)` seconds ( `r round(elapsed/60,2)` minutes) using [knitr](https://cran.r-project.org/package=knitr) in [RStudio](http://www.rstudio.com) with `r R.version.string` running on `r R.version$platform`.
+
+# R environment
+
+## R packages used
+
+ * base R [@baseR]
+ * bookdown [@bookdown]
+ * data.table [@data.table]
+ * ggplot2 [@ggplot2]
+ * kableExtra [@kableExtra]
+ * knitr [@knitr]
+ * lubridate [@lubridate]
+ * rmarkdown [@rmarkdown]
+ * skimr [@skimr]
+ * XML [@XML]
+
+## Session info
+
+```{r sessionInfo, echo=FALSE}
+sessionInfo()
+```
+
+# References
+
