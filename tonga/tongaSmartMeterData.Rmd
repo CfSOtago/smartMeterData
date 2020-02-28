@@ -76,7 +76,15 @@ Now try loading the .csv file (`r f1_csv`) and test what we get before any proce
 ```{r load_f1_csv}
 f1_dt_orig <- data.table::fread(f1_csv, check.names = TRUE)
 
-skimr::skim(f1_dt_orig)
+names(f1_dt_orig)
+
+head(f1_dt_orig)
+```
+
+```{r skim_f1_dt_orig}
+sk <- skimr::skim(f1_dt_orig)
+
+print(sk)
 ```
 
 So what does all that mean?
@@ -84,7 +92,7 @@ So what does all that mean?
 Try fixing some of the formats.
 
 ```{r process_f1_csv}
-f1_dt <- data.table::copy(f1_dt_orig)
+f1_dt <- data.table::copy(f1_dt_orig) # so we can revert if needed
 f1_dt[, EndDate := lubridate::dmy_hm(EndDate)]
 f1_dt[, StartDate := lubridate::dmy_hm(StartDate)]
 f1_dt[, EndTimet := lubridate::dmy_hms(EndTime)]
