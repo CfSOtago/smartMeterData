@@ -28,7 +28,7 @@ bibliography: '`r path.expand("~/bibliography.bib")`'
 
 ```{r setup, include=FALSE}
 # Knitr setup ----
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE) # for final tidy run
 knitr::opts_chunk$set(message = FALSE) # for final tidy run
 
@@ -59,7 +59,7 @@ We have some Tongan smart meter data provided as part of [Kakau Foliaki](https:/
 
 Sent to KF. No meta-data. Sent as xml. Converted (possibly with errors) to .csv.
 
-In theory this should be half-hourly electricity consumtion (Wh or kWh) data for a large(ish) number of TOngan households. It even be all Tongan households with smart meters. But who knows...
+In theory this should be half-hourly electricity consumption (Wh or kWh) data for a large(ish) number of Tongan households. It even be all Tongan households with smart meters. But who knows...
 
 What have we got?
 
@@ -68,7 +68,7 @@ f1_xml <- paste0(dPathFull, "/CRF_2020_1_28_4296268_1 - Copy.xml")
 f1_csv <- paste0(dPathFull, "/Smartmeter.csv")
 ```
 
-> First try loading the (huge) xml file (`r f1_xml`)
+First try loading the (huge) xml file (`r f1_xml`)
 
 ```{r load_f1_xml}
 try(f1_df <- XML::xmlToDataFrame(f1_xml)) # try as it breaks if there's an error
@@ -77,14 +77,16 @@ try(f1_df <- XML::xmlToDataFrame(f1_xml)) # try as it breaks if there's an error
 
 Helpful.
 
-> Now try loading the .csv file (`r f1_csv`) and test what we get before any processing.
+Now try loading the .csv file (`r f1_csv`) and test what we get before any processing.
 
 ```{r load_f1_csv}
 f1_dt_orig <- data.table::fread(f1_csv, check.names = TRUE)
 
+# names of variables
 names(f1_dt_orig)
 
-head(f1_dt_orig)
+h <- head(f1_dt_orig)
+kableExtra::kable(h, caption = "First few rows")
 ```
 
 ```{r skim_f1_dt_orig}
@@ -106,11 +108,15 @@ Looks like a dateTime, does it walk like a dateTime? Looks like it's in `d/m/y H
 ```{r process_f1_csv_StartDate}
 f1_dt[, ba_StartDate := lubridate::dmy_hm(StartDate)]
 
+# convert & test
+
 head(f1_dt[, .(StartDate, ba_StartDate)])
+
 skimr::skim(f1_dt[, .(StartDate, ba_StartDate)])
 ```
 
-So startDate is 2018-11-30 11:00:00 and is constant. Presumably this is the start date for the data extract?
+
+>So startDate is 2018-11-30 11:00:00 and is constant. Presumably this is the start date for the data extract?
 
 ## EndDate
 
@@ -124,7 +130,8 @@ head(dt)
 skimr::skim(dt)
 ```
 
-And EndDate is also constant and is 2020-01-27 21:25:00 - but is not a round 'half hour'?
+
+>And EndDate is also constant and is 2020-01-27 21:25:00 - but is not a round 'half hour'?
 
 ## EndTime
 
@@ -140,7 +147,8 @@ head(dt)
 skimr::skim(dt)
 ```
 
-So EndTime is also constant at 2019-05-12 05:00:00 but it is missing for a lot of rows.
+
+>So EndTime is also constant at 2019-05-12 05:00:00 but it is missing for a lot of rows.
 
 ## NumberOfReadings_1
 
@@ -156,7 +164,8 @@ head(dt)
 skimr::skim(dt)
 ```
 
-NumberOfReadings.1 is constant at 2019-11-18 05:00:00 with a lot of missing. So what is this?
+
+>NumberOfReadings.1 is constant at 2019-11-18 05:00:00 with a lot of missing. So what is this?
 
 We don't seem to have an obvious half hourly dateTime field...
 
@@ -172,7 +181,8 @@ kableExtra::kable(h, caption = "IDs - example rows") %>%
 skimr::skim(f1_dt[, .(X.id, X.id.1, X.id.2)])
 ```
 
-So X.id and X.id1 could be true id variables. But X.id.2 seems to increase monotonically.
+
+> So X.id and X.id1 could be true id variables. But X.id.2 seems to increase monotonically.
 
 Unique values:
 
@@ -257,7 +267,7 @@ ggplot2::ggplot(f1_dt, aes(x = lagWithinX.id.1)) +
   geom_histogram()
 ```
 
-Yep. So we need a way to set the first dateTime within each id and then increase it by 30 minutes each row.
+>Yep. So we need a way to set the first dateTime within each id and then increase it by 30 minutes each row.
 
 ## Setting true dateTime
 
@@ -282,14 +292,15 @@ summary(f1_dt[!is.na(X.id.1), .(X.id.1, X.id.2, ba_EndDate, ba_EndTime,
 skim(f1_dt[, .(X.id.1, X.id.2,ba_EndDate, ba_EndTime, ba_StartDate, dateTime)])
 ```
 
-Looks OK: dateTime implies we have `r uniqueN(f1_dt$dateTime)` half hours represented which implies we only have 2 months of data.
+> Looks OK: dateTime implies we have `r uniqueN(f1_dt$dateTime)` half hours represented which implies we only have 2 months of data.
 
 ```{r f1_checkMonths}
 f1_dt[, .(nObs = .N), keyby = .(month,
                                 year = lubridate::year(dateTime))][order(year)]
 ```
 
-Looks like it _but_ this depends if we've coded dateTime correctly.
+
+> Looks like it _but_ this depends if we've coded dateTime correctly.
 
 Let's see how many households (IDs) and observations we have over time.
 
@@ -299,19 +310,19 @@ ggplot2::ggplot(plotDT, aes(y = nX.id, x = date)) +
   geom_point()
 ```
 
-```{r plot_f1_NumberOfX1IDsByDate, fig.cap="Number of unique X.id.1 by date"}
+```{r plotf1NumberOfX1IDsByDate, fig.cap="Number of unique X.id.1 by date"}
 plotDT <- f1_dt[, .(nX.id.1 = uniqueN(X.id.1)), keyby = .(date)]
 ggplot2::ggplot(plotDT, aes(y = nX.id.1, x = date)) +
   geom_point()
 ```
 
-```{r plot_f1_NumberOfObsByDateTime, fig.cap="Number of obs by date"}
+```{r NumberOfObsByDateTime, fig.cap="Number of obs by date"}
 plotDT <- f1_dt[, .(nObs = .N), keyby = .(date)]
 ggplot2::ggplot(plotDT, aes(y = nObs, x = date)) +
   geom_point()
 ```
 
-Yeah. So this does suggest that X.id.2 is a household ID as it follows the pattern of the number of observations (\@ref(fig:plot_f1_NumberOfObsByDateTime)).
+Yeah. So this does suggest that X.id.2 is a household ID as it follows the pattern of the number of observations (\@ref(fig:plotf1NumberOfX1IDsByDate)).
 
 ## NumberOfReadings
 What is this for?
@@ -329,7 +340,7 @@ OK, so why do we have some rows with lots of readings and some with far fewer? I
 
 Value should (ideally) be consumption per half hour.
 
-```{r plot_f1_value, fig.cap="Distribution of Value"}
+```{r plotf1value, fig.cap="Distribution of Value"}
 skim(f1_dt$Value)
 
 ggplot2::ggplot(f1_dt[,.(Value, NumberOfReadings)], aes(x = NumberOfReadings , y = Value)) +
@@ -339,7 +350,7 @@ ggplot2::ggplot(f1_dt[,.(Value, NumberOfReadings)], aes(x = Value)) +
   geom_histogram()
 ```
 
-Well \@ref(fig:plot_f1_value) looks a bit odd. Why is there a sort of threshold at 250? We obviously have very few Values over 250...
+Well \@ref(fig:plotf1value) looks a bit odd. Why is there a sort of threshold at 250? We obviously have very few Values over 250...
 
 Try plotting mean of Value by dateTime across all households (remember number of X.id.1s varies across time)
 
@@ -369,7 +380,7 @@ ggplot2::ggplot(f1_dt[!is.na(month)], aes(x = hms , y = Value, group = hms)) +
   facet_grid(. ~ month)
 ```
 
-```{r plot_f1_meanValueByTime, fig.cap = "Mean Value by time of day"}
+```{r plotf1meanValueByTime, fig.cap = "Mean Value by time of day"}
 plotDT <- f1_dt[!is.na(month), .(meanValue = mean(Value)), keyby = .(month, hms)]
   
 ggplot2::ggplot(plotDT, aes(x = hms , y = meanValue)) +
@@ -377,13 +388,17 @@ ggplot2::ggplot(plotDT, aes(x = hms , y = meanValue)) +
   facet_grid(. ~ month)
 ```
 
-What is this? Is this even the right shape?? \@ref(fig:plot_f1_meanValueByTime) Could be... but the values are weird.
+What is this? Is this even the right shape?? \@ref(fig:plotf1meanValueByTime) Could be... but the values are weird.
 
 > It can't be voltage can it (with outliers)?
 
 ## Initial dataset summary
 
 We really don't know what most of these data columns are!
+
+# Second dataset
+
+Let's hope this is more heplful!!
 
 # Runtime
 
