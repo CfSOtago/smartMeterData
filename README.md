@@ -1,6 +1,6 @@
 # smartMeterData
 Code for processing various smart meter data sets. No data here, just code
 
-See:
+See also:
 
- * [Tonga](https://cfsotago.github.io/smartMeterData/tonga/tongaSmartMeterData.html) data report
+ * https://github.com/CfSOtago/foliakiPhD
